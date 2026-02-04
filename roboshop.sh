@@ -2,7 +2,7 @@
 #!/bin/bash
 
 SG_ID="sg-01cd59b2cef19195c"
-AMI_ID="ami-0ami-0220d79f3f480ecf5"
+AMI_ID="ami-0220d79f3f480ecf5"
 ZONE_ID="Z0493894GT35YUX5U0H3"
 DOMAIN_NAME="dheerajn.online"
 
