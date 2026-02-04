@@ -1,38 +1,53 @@
+
 #!/bin/bash
 
-SG_ID="sg-0f662185634b5ed2a"
-AMI_ID="ami-0532be01f26a3de55"
+SG_ID="sg-01cd59b2cef19195c"
+AMI_ID="ami-0ami-0220d79f3f480ecf5"
+ZONE_ID="Z0493894GT35YUX5U0H3"
+DOMAIN_NAME="dheerajn.online"
 
 for instance in "$@"
 do
-  INSTANCE_ID=$(
-    aws ec2 run-instances \
-      --image-id "$AMI_ID" \
-      --instance-type t3.micro \
-      --security-group-ids "$SG_ID" \
-      --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=$instance}]" \
-      --query 'Instances[0].InstanceId' \
-      --output text
-  )
+  INSTANCE_ID=$(aws ec2 run-instances \
+    --image-id "$AMI_ID" \
+    --instance-type t3.micro \
+    --security-group-ids "$SG_ID" \
+    --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=$instance}]" \
+    --query 'Instances[0].InstanceId' \
+    --output text)
 
   echo "Created instance: $INSTANCE_ID"
 
   if [ "$instance" = "frontend" ]; then
-    IP=$(
-      aws ec2 describe-instances \
-        --instance-ids "$INSTANCE_ID" \
-        --query 'Reservations[].Instances[].PublicIpAddress' \
-        --output text
-    )
+    IP=$(aws ec2 describe-instances \
+      --instance-ids "$INSTANCE_ID" \
+      --query 'Reservations[].Instances[].PublicIpAddress' \
+      --output text)
+    RECORD_NAME="$DOMAIN_NAME" #dheerajn.online
   else
-    IP=$(
-      aws ec2 describe-instances \
-        --instance-ids "$INSTANCE_ID" \
-        --query 'Reservations[].Instances[].PrivateIpAddress' \
-        --output text
-    )
+    IP=$(aws ec2 describe-instances \
+      --instance-ids "$INSTANCE_ID" \
+      --query 'Reservations[].Instances[].PrivateIpAddress' \
+      --output text)
+    RECORD_NAME="$instance.$DOMAIN_NAME" #mongodb.dheerajn.online
   fi
 
   echo "$instance IP Address: $IP"
-done
 
+  aws route53 change-resource-record-sets \
+    --hosted-zone-id "$ZONE_ID" \
+    --change-batch "{
+      \"Comment\": \"Updating record\",
+      \"Changes\": [{
+        \"Action\": \"UPSERT\",
+        \"ResourceRecordSet\": {
+          \"Name\": \"$RECORD_NAME\",
+          \"Type\": \"A\",
+          \"TTL\": 1,
+          \"ResourceRecords\": [{ \"Value\": \"$IP\" }]
+        }
+      }]
+    }"
+
+  echo "Record updated for $instance"
+done
